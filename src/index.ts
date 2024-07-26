@@ -76,7 +76,7 @@ export class AuthProxyCache implements DurableObject {
      * Authenticate the request with Supabase
      */
     async withAuth(request: Request, origin: { fetch: (request: Request) => Promise<Response> }) {
-        const { supabase, headers } = createClient(request);
+        const { supabase, headers } = await createClient(request);
         const { data, error } = await supabase.auth.getUser();
 
         const primaryPath = this.getPrimaryPath(request);
@@ -89,15 +89,19 @@ export class AuthProxyCache implements DurableObject {
             }
         }
 
+        // Add the user id to the request headers
+        const modifiedRequest = new Request(request);
+        modifiedRequest.headers.append("X-User-Id", data?.user?.id || "");
+
         // Get the response from the origin
-        const response: Response = await origin.fetch(request);
+        const response: Response = await origin.fetch(modifiedRequest);
 
         // Return the response with the authenticated headers
         return new Response(response.body, {
             status: response.status,
             headers: {
                 ...response.headers,
-                ...headers
+                ...headers,
             }
         });
 

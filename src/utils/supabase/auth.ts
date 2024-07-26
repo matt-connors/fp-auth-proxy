@@ -28,7 +28,7 @@ function parseFormData(formData: FormData) {
  */
 export async function login(request: Request) {
     // Create a Supabase client and get the headers
-    const { supabase, headers } = createClient(request);
+    const { supabase, headers } = await createClient(request);
     const formData = await request.formData();
     // Attempt to parse the form data
     const data = parseFormData(formData);
@@ -43,10 +43,11 @@ export async function login(request: Request) {
     // Attempt to sign in with the form data
     const { error } = await supabase.auth.signInWithPassword(data);
     if (error) {
-        return new Response(JSON.stringify({ error }), {
-            status: 400,
+        console.log(error.name, error.code, error.status);
+        return new Response(null, {
+            status: 302,
             headers: {
-                "Content-Type": "application/json",
+                "Location": "/login?message=" + encodeURIComponent("Invalid email or password"),
             },
         });
     }
@@ -55,7 +56,7 @@ export async function login(request: Request) {
         status: 302,
         headers: {
             "Location": "/",
-            "Set-Cookie": headers["Set-Cookie"],
+            "Set-Cookie": headers.get("Set-Cookie") ?? "",
         },
     });
 }
@@ -65,7 +66,7 @@ export async function login(request: Request) {
  */
 export async function logout(request: Request) {
     // Create a Supabase client and get the headers
-    const { supabase, headers } = createClient(request);
+    const { supabase, headers } = await createClient(request);
     // Attempt to sign out
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -81,7 +82,7 @@ export async function logout(request: Request) {
         status: 302,
         headers: {
             "Location": "/login",
-            "Set-Cookie": headers["Set-Cookie"],
+            "Set-Cookie": headers.get("Set-Cookie") ?? "",
         },
     });
 }
@@ -91,7 +92,7 @@ export async function logout(request: Request) {
  */
 export async function signup(request: Request) {
     // Create a Supabase client and get the headers
-    const { supabase, headers } = createClient(request);
+    const { supabase, headers } = await createClient(request);
     const formData = await request.formData();
     // Attempt to parse the form data
     const data = parseFormData(formData);
@@ -118,7 +119,7 @@ export async function signup(request: Request) {
         status: 302,
         headers: {
             "Location": "/",
-            "Set-Cookie": headers["Set-Cookie"],
+            "Set-Cookie": headers.get("Set-Cookie") ?? "",
         },
     });
 }
