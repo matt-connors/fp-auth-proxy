@@ -3,7 +3,7 @@
  */
 
 import { fetchExternalResource } from "./utils/request";
-import { login, signup, logout } from "./utils/supabase/auth";
+import { login, signup, logout, createResponseWithCookies } from "./utils/supabase/auth";
 import { createClient } from "./utils/supabase/server";
 
 /**
@@ -46,20 +46,20 @@ export class AuthProxyCache implements DurableObject {
 
             // Handle when the user wants to log out
             case "logout":
-                return logout(request);
+                return logout(this.env, request);
 
             // Handle when the user wants to log in
             case "login":
                 // only accept post requests since the get method is handled by the dashboard
                 if (request.method === "POST") {
-                    return login(request);
+                    return login(this.env, request);
                 }
 
             // Handle when the user wants to sign up
             case "signup":
                 // only accept post requests since the get method is handled by the dashboard
                 if (request.method === "POST") {
-                    return signup(request);
+                    return signup(this.env, request);
                 }
 
             // The dashboard (fp-dashboard)
@@ -76,7 +76,7 @@ export class AuthProxyCache implements DurableObject {
      * Authenticate the request with Supabase
      */
     async withAuth(request: Request, origin: { fetch: (request: Request) => Promise<Response> }) {
-        const { supabase, headers } = await createClient(request);
+        const { supabase, cookies } = await createClient(request);
         const { data, error } = await supabase.auth.getUser();
 
         const primaryPath = this.getPrimaryPath(request);
@@ -85,6 +85,7 @@ export class AuthProxyCache implements DurableObject {
         if (error || !data?.user) {
             // Ensure they're not already on the login or signup page
             if (primaryPath !== 'login' && primaryPath !== 'signup' && primaryPath !== 'logout') {
+                console.log(error);
                 return new Response("Unauthorized", { status: 401 });
             }
         }
@@ -97,13 +98,7 @@ export class AuthProxyCache implements DurableObject {
         const response: Response = await origin.fetch(modifiedRequest);
 
         // Return the response with the authenticated headers
-        return new Response(response.body, {
-            status: response.status,
-            headers: {
-                ...response.headers,
-                ...headers,
-            }
-        });
+        return createResponseWithCookies(response, cookies);
 
     }
 
