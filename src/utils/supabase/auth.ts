@@ -42,7 +42,7 @@ export function createResponseWithCookies(response: Response, cookies: string[])
  * Handle login form submission and redirect to the dashboard after successful login
  */
 export async function login(env: Env, request: Request) {
-    
+
     // Create a Supabase client and get the headers
     const { supabase, cookies } = await createClient(request);
     const formData = await request.formData();
@@ -139,10 +139,10 @@ export async function signup(env: Env, request: Request) {
     }
 
     // Update the database with the user's information
-    // {
-    //     email: data.user?.email || parsedFormData.email,
-    //     uuid: data.user?.id, // uuid in the auth database
-    // }
+    await env.FP_DATA_API.createUser({
+        email: data.user?.email || parsedFormData.email,
+        uuid: data.user?.id, // uuid in the auth database
+    })
 
     // Redirect to the dashboard if successful and set the cookie
     return createResponseWithCookies(new Response(null, {

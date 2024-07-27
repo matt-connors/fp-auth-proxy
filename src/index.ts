@@ -6,12 +6,14 @@ import { fetchExternalResource } from "./utils/request";
 import { login, signup, logout, createResponseWithCookies } from "./utils/supabase/auth";
 import { createClient } from "./utils/supabase/server";
 
+type FP_DATA_API_SERVICE = Service & { createUser: (data: any) => Promise<any> };
+
 /**
  * Associate bindings declared in wrangler.toml with the TypeScript type system
  */
 export interface Env {
     AUTH_PROXY_CACHE: DurableObjectNamespace;
-    FP_DATA_API: Service;
+    FP_DATA_API: FP_DATA_API_SERVICE;
     // environment variables
     FP_DASHBOARD_PROD_URL: string;
     FP_DASHBOARD_DEV_URL: string;

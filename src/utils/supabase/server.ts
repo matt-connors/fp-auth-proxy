@@ -15,14 +15,12 @@ export async function createClient(request: Request) {
             },
             cookies: {
                 getAll() {
-                    console.log('getting cookies');
                     return parseCookieHeader(request.headers.get("Cookie") ?? '')
                 },
                 setAll(cookiesToSet: { name: string, value: string, options: CookieOptions }[]) {
                     cookiesToSet.forEach(({ name, value, options }) => {
                         cookies.push(serializeCookieHeader(name, value, options))
                     });
-                    console.log('updated cookies', cookies);
                 }
             },
             // cookieEncoding: 'base64url',
