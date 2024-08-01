@@ -90,12 +90,14 @@ export async function logout(env: Env, request: Request) {
     // Attempt to sign out
     const { error } = await supabase.auth.signOut();
     if (error) {
-        return new Response(JSON.stringify({ error }), {
-            status: 400,
+        console.log(error);
+        // redirect to the login page and clear the cookie
+        return createResponseWithCookies(new Response(null, {
+            status: 302,
             headers: {
-                "Content-Type": "application/json",
+                "Location": "/login",
             },
-        });
+        }), cookies);
     }
 
     // Redirect to the login page if successful and update the cookie (to nothing)
@@ -141,8 +143,11 @@ export async function signup(env: Env, request: Request) {
     // Update the database with the user's information
     await env.FP_DATA_API.createUser({
         email: data.user?.email || parsedFormData.email,
-        uuid: data.user?.id, // uuid in the auth database
+        id: data.user?.id, // uuid in the auth database
     })
+    .catch((error) => {
+        console.error(error);
+    });
 
     // Redirect to the dashboard if successful and set the cookie
     return createResponseWithCookies(new Response(null, {
