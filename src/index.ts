@@ -2,11 +2,16 @@
  * Cloudflare auth proxy which handles authentication and access control before forwarding requests.
  */
 
-import { fetchExternalResource } from "./utils/request";
-import { login, signup, logout, createResponseWithCookies } from "./utils/supabase/auth";
-import { createClient } from "./utils/supabase/server";
+import { fetchExternalResource } from "./lib/request";
+import { login, signup, logout } from "./lib/supabase/auth";
+import { createResponseWithCookies } from "./lib/supabase/utils";
+import { createClient } from "./lib/supabase/server";
+import { handleClientOnboarding, handleTrainerOnboarding } from "./lib/onboarding";
 
-type FP_DATA_API_SERVICE = Service & { createUser: (data: any) => Promise<any> };
+type FP_DATA_API_SERVICE = Service & {
+    createUser: (data: any) => Promise<any>
+    initializeTrainer: (id: string, data: any) => Promise<any>
+};
 
 /**
  * Associate bindings declared in wrangler.toml with the TypeScript type system
@@ -39,6 +44,10 @@ export class AuthProxyCache implements DurableObject {
 
         const primaryPath = this.getPrimaryPath(request);
 
+        if (request.method === "POST") {
+            return this.routePostRequest(request);
+        }
+
         // Handle GET and all other requests
         switch (primaryPath) {
 
@@ -50,27 +59,61 @@ export class AuthProxyCache implements DurableObject {
             case "logout":
                 return logout(this.env, request);
 
+            // The dashboard (fp-dashboard)
+            default:
+                return this.fetchDefault(request);
+        }
+    }
+
+    /**
+     * Handle non matching requests
+     */
+    async fetchDefault(request: Request): Promise<Response> {
+        let origin = fetchExternalResource({
+            devUrl: this.env.FP_DASHBOARD_DEV_URL,
+            prodUrl: this.env.FP_DASHBOARD_PROD_URL
+        });
+        return origin.fetch(request);
+
+        // return new Response("Not Found", { status: 404 });
+    }
+
+    /**
+     * Handle POST requests
+     */
+    async routePostRequest(request: Request): Promise<Response> {
+        const primaryPath = this.getPrimaryPath(request);
+
+        switch (primaryPath) {
+
+            // The data api (fp-data-api)
+            case "data-api":
+                return this.withAuth(request, this.env.FP_DATA_API);
+
             // Handle when the user wants to log in
             case "login":
-                // only accept post requests since the get method is handled by the dashboard
-                if (request.method === "POST") {
-                    return login(this.env, request);
-                }
+                return login(this.env, request);
 
             // Handle when the user wants to sign up
             case "signup":
-                // only accept post requests since the get method is handled by the dashboard
-                if (request.method === "POST") {
-                    return signup(this.env, request);
-                }
+                return signup(this.env, request);
+
+            // Handle onboarding form submissions for trainers
+            case "onboarding-trainer":
+                // calling the withauth route to ensure the user is authenticated
+                return this.withAuth(request, {
+                    fetch: async (request: Request) => {
+                        return handleTrainerOnboarding(this.env, request);
+                    }
+                });
+
+            // Handle onboarding form submissions for clients
+            case "onboarding-client":
+                return handleClientOnboarding(this.env, request);
 
             // The dashboard (fp-dashboard)
             default:
-                let origin = fetchExternalResource({
-                    devUrl: this.env.FP_DASHBOARD_DEV_URL,
-                    prodUrl: this.env.FP_DASHBOARD_PROD_URL
-                });
-                return origin.fetch(request);
+                return this.fetchDefault(request);
         }
     }
 
