@@ -21,7 +21,7 @@ export async function login(env: Env, request: Request) {
     const parsedFormData = parseFormData(formData, formDataSchema);
 
     if (!parsedFormData) {
-        return redirectWithError("Invalid form data");
+        return redirectWithError("/login", "Invalid form data");
     }
 
     // Attempt to sign in with the form data
@@ -29,7 +29,7 @@ export async function login(env: Env, request: Request) {
     
     if (error) {
         console.log(error.name, error.code, error.status);
-        return redirectWithError("Invalid email or password");
+        return redirectWithError("/login", "Invalid email or password");
     }
 
     // Redirect to the dashboard if successful and set the cookie
@@ -85,14 +85,14 @@ export async function signup(env: Env, request: Request) {
     const parsedFormData = parseFormData(formData, formDataSchema);
 
     if (!parsedFormData) {
-        return redirectWithError("Invalid form data");
+        return redirectWithError("/signup", "Invalid form data");
     }
 
     // Attempt to sign up with the form data
     const { error, data } = await supabase.auth.signUp(parsedFormData);
     
     if (error) {
-        return redirectWithError("An error occurred while signing up");
+        return redirectWithError("/signup", "An error occurred while signing up");
     }
 
     // Update the database with the user's information

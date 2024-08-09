@@ -29,11 +29,11 @@ export function createResponseWithCookies(response: Response, cookies: string[])
 /**
  * Redirect to the signup page with an error message
  */
-export function redirectWithError(message: string) {
+export function redirectWithError(destination: string, message: string) {
     return new Response(null, {
         status: 302,
         headers: {
-            "Location": "/signup?message=" + encodeURIComponent(message),
+            "Location": destination + "?message=" + encodeURIComponent(message),
         },
     });
 }
