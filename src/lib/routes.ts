@@ -7,14 +7,15 @@ import { Env } from "..";
 export async function handleProgramEdit(env: Env, request: Request, continueRequest: any): Promise<Response> {
 
     const programId = getPrimaryPath(request)[3];
+    const userId = request.headers.get("X-User-Id");
 
     // If the user is trying to edit an existing program, continue the request
-    if (programId) {
+    if (programId || !userId) {
         return continueRequest(env, request);
     }
 
     // create a new program
-    const response = await env.FP_DATA_API.createProgram()
+    const response = await env.FP_DATA_API.createProgram(userId)
         .catch((error: any) => {
             console.error(`Error creating new program: ${error}`);
             // Redirect the user to the programs page to try again

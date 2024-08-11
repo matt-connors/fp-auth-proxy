@@ -12,7 +12,7 @@ import { handleAssignProgram, handleProgramEdit } from "./lib/routes";
 type FP_DATA_API_SERVICE = Service & {
     createUser: (data: any) => Promise<any>
     initializeTrainer: (id: string, data: any) => Promise<any>
-    createProgram: () => Promise<any>
+    createProgram: (userId: string) => Promise<any>
     assignProgramToUser: (programId: number, userId: string) => Promise<any>
 };
 
