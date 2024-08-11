@@ -18,3 +18,11 @@ export function fetchExternalResource({ devUrl, prodUrl }: { devUrl: string, pro
         }
     }
 }
+
+/**
+ * Get the primary path from the request URL
+ */
+export function getPrimaryPath(request: Request) {
+    const url = new URL(request.url);
+    return [...url.pathname.split('/').slice(1)];
+}

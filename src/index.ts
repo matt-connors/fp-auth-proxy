@@ -2,15 +2,18 @@
  * Cloudflare auth proxy which handles authentication and access control before forwarding requests.
  */
 
-import { fetchExternalResource } from "./lib/request";
+import { fetchExternalResource, getPrimaryPath } from "./lib/utils";
 import { login, signup, logout } from "./lib/supabase/auth";
 import { createResponseWithCookies } from "./lib/supabase/utils";
 import { createClient } from "./lib/supabase/server";
 import { handleClientOnboarding, handleTrainerOnboarding } from "./lib/onboarding";
+import { handleAssignProgram, handleProgramEdit } from "./lib/routes";
 
 type FP_DATA_API_SERVICE = Service & {
     createUser: (data: any) => Promise<any>
     initializeTrainer: (id: string, data: any) => Promise<any>
+    createProgram: () => Promise<any>
+    assignProgramToUser: (programId: number, userId: string) => Promise<any>
 };
 
 /**
@@ -42,7 +45,7 @@ export class AuthProxyCache implements DurableObject {
      */
     async routeRequest(request: Request): Promise<Response> {
 
-        const primaryPath = this.getPrimaryPath(request);
+        const [primaryPath, secondPath, thirdPath] = getPrimaryPath(request);
 
         if (request.method === "POST") {
             return this.routePostRequest(request);
@@ -59,19 +62,35 @@ export class AuthProxyCache implements DurableObject {
             case "logout":
                 return logout(this.env, request);
 
+            case "assign-program":
+                    return this.withAuth(request, {
+                        fetch: async (request: Request) => {
+                            return handleAssignProgram(this.env, request);
+                        }
+                    });
+
+            case "trainer":
+                if (secondPath === "programs" && thirdPath === "edit") {
+                    return this.withAuth(request, {
+                        fetch: async (request: Request) => {
+                            return handleProgramEdit(this.env, request, this.fetchDefault);
+                        }
+                    });
+                }
+
             // The dashboard (fp-dashboard)
             default:
-                return this.fetchDefault(request);
+                return this.fetchDefault(this.env, request);
         }
     }
 
     /**
      * Handle non matching requests
      */
-    async fetchDefault(request: Request): Promise<Response> {
+    async fetchDefault(env: Env, request: Request): Promise<Response> {
         let origin = fetchExternalResource({
-            devUrl: this.env.FP_DASHBOARD_DEV_URL,
-            prodUrl: this.env.FP_DASHBOARD_PROD_URL
+            devUrl: env.FP_DASHBOARD_DEV_URL,
+            prodUrl: env.FP_DASHBOARD_PROD_URL
         });
         return origin.fetch(request);
 
@@ -82,7 +101,7 @@ export class AuthProxyCache implements DurableObject {
      * Handle POST requests
      */
     async routePostRequest(request: Request): Promise<Response> {
-        const primaryPath = this.getPrimaryPath(request);
+        const [primaryPath] = getPrimaryPath(request);
 
         switch (primaryPath) {
 
@@ -113,7 +132,7 @@ export class AuthProxyCache implements DurableObject {
 
             // The dashboard (fp-dashboard)
             default:
-                return this.fetchDefault(request);
+                return this.fetchDefault(this.env, request);
         }
     }
 
@@ -124,7 +143,7 @@ export class AuthProxyCache implements DurableObject {
         const { supabase, cookies } = await createClient(request);
         const { data, error } = await supabase.auth.getUser();
 
-        const primaryPath = this.getPrimaryPath(request);
+        const [primaryPath] = getPrimaryPath(request);
 
         // If the user is not authenticated, redirect to the login
         if (error || !data?.user) {
@@ -145,14 +164,6 @@ export class AuthProxyCache implements DurableObject {
         // Return the response with the authenticated headers
         return createResponseWithCookies(response, cookies);
 
-    }
-
-    /**
-     * Get the primary path from the request URL
-     */
-    getPrimaryPath(request: Request) {
-        const url = new URL(request.url);
-        return url.pathname.split('/')[1];
     }
 
     /**
