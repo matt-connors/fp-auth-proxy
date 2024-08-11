@@ -36,7 +36,7 @@ export async function login(env: Env, request: Request) {
     return createResponseWithCookies(new Response(null, {
         status: 302,
         headers: {
-            "Location": "/",
+            "Location": "/trainer",
         },
     }), cookies);
 }
